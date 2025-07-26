@@ -8,3 +8,4 @@ numpy
 einops
 shapely
 matplotlib
+timm
