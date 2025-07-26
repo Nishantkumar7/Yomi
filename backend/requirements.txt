@@ -5,3 +5,4 @@ transformers
 pdf2image
 pillow
 numpy
+einops
