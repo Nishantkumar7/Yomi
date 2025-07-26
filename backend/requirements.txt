@@ -6,3 +6,5 @@ pdf2image
 pillow
 numpy
 einops
+shapely
+matplotlib
