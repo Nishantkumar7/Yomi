@@ -5,11 +5,20 @@ import tempfile
 import numpy as np
 import torch
 from fastapi import FastAPI, File, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pdf2image import convert_from_path
 from PIL import Image
 from transformers import AutoModel
 import uvicorn
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Use ["http://127.0.0.1:5500"] for stricter settings
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Increase image size limit
 Image.MAX_IMAGE_PIXELS = None
