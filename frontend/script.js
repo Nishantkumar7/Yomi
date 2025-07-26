@@ -5,7 +5,7 @@ async function upload() {
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await fetch("", {
+  const res = await fetch("https://yomi-e73k.onrender.com", {
     method: "POST",
     body: formData
   });
