@@ -9,3 +9,4 @@ einops
 shapely
 matplotlib
 timm
+python-multipart
