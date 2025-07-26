@@ -5,60 +5,55 @@ import tempfile
 import numpy as np
 import torch
 from fastapi import FastAPI, File, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pdf2image import convert_from_path
 from PIL import Image
 from transformers import AutoModel
 import uvicorn
 
-# FastAPI app - must be defined first
+# Increase image size limit
+Image.MAX_IMAGE_PIXELS = None
+
+# Configuration
+TALL_PAGE_HEIGHT = 3000
+SPLIT_CHUNK_HEIGHT = 2500
+
+# Load model on CPU
+device = torch.device("cpu")
+model = AutoModel.from_pretrained("ragavsachdeva/magi", trust_remote_code=True).to(device).eval()
+
+# Initialize FastAPI app
 app = FastAPI()
 
-# Add CORS middleware
+# Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change this in production
+    allow_origins=["*"],  # For development; in production, use ["https://yourfrontend.com"]
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Increase image size limit for PIL
-Image.MAX_IMAGE_PIXELS = None
-
-# Constants
-TALL_PAGE_HEIGHT = 3000
-SPLIT_CHUNK_HEIGHT = 2500
-
-# Load model on CPU (safer for Render deployment)
-device = torch.device("cpu")
-model = AutoModel.from_pretrained("ragavsachdeva/magi", trust_remote_code=True).to(device).eval()
-
-# Utility: Split tall image into smaller chunks
 def split_tall_image(img, chunk_height=2500):
     width, height = img.size
     return [img.crop((0, y, width, min(y + chunk_height, height))) for y in range(0, height, chunk_height)]
 
-# Utility: Convert PIL image to NumPy format
 def read_image_as_np_array(image):
     return np.array(image.convert("L").convert("RGB"))
 
-# OCR endpoint
 @app.post("/ocr")
 async def ocr_pipeline(file: UploadFile = File(...)):
-    if not file.filename.lower().endswith(".pdf"):
+    if not file.filename.endswith(".pdf"):
         return JSONResponse(content={"error": "Invalid file"}, status_code=400)
 
     temp_dir = tempfile.mkdtemp()
     pdf_path = os.path.join(temp_dir, "upload.pdf")
 
-    try:
-        # Save uploaded PDF
-        with open(pdf_path, "wb") as f:
-            f.write(await file.read())
+    with open(pdf_path, "wb") as f:
+        f.write(await file.read())
 
-        # Convert PDF to images
+    try:
         images = convert_from_path(pdf_path, dpi=300, fmt='png')
         full_text = []
 
@@ -72,16 +67,14 @@ async def ocr_pipeline(file: UploadFile = File(...)):
                     bboxes = [r["texts"] for r in results]
                     ocr_results = model.predict_ocr([img_np], bboxes)
                 full_text.extend(ocr_results[0])
-
-        return {"text": "\n".join(full_text)}
-
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
-    
     finally:
         shutil.rmtree(temp_dir)
 
-# Run app locally (for Render this will be ignored; start command is used instead)
+    return {"text": "\n".join(full_text)}
+
+# Dynamic port for Render or default 10000 locally
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     uvicorn.run("app:app", host="0.0.0.0", port=port)
