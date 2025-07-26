@@ -73,8 +73,3 @@ async def ocr_pipeline(file: UploadFile = File(...)):
         shutil.rmtree(temp_dir)
 
     return {"text": "\n".join(full_text)}
-
-# Dynamic port for Render or default 10000 locally
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    uvicorn.run("app:app", host="0.0.0.0", port=port)
